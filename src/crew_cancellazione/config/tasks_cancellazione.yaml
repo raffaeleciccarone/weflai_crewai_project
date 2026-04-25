@@ -1,0 +1,67 @@
+# find_booking_to_cancel_task:
+#   description: >
+#     L'utente vuole cancellare. Input: "{query_utente}".
+#     1. Cerca nello schema 'weflai.prenotazioni'.
+#     2. Se l'utente fornisce l'ID prenotazione, usa quello (è il metodo più sicuro).
+#     3. Se l'utente fornisce solo {nome_utente} o {cognome_utente}, cerca tutte le prenotazioni attive per
+#     quel nome facendo JOIN con weflai.voli per mostrare destinazione e data.
+#     4. Se trovi più record ambigui (es. sembra esserci lo stesso nome/cognome), il task deve fallire chiedendo più dettagli, NON indovinare.
+#   expected_output: >
+#     L'id_prenotazione univoco confermato da cancellare.
+#   agent: flight_analyst
+
+# delete_booking_task:
+#   description: >
+#     Usa l'id_prenotazione fornito.
+#     1. Esegui: "DELETE FROM weflai.prenotazioni WHERE id_prenotazione = ...".
+#     2. Verifica che il database confermi "1 row affected" (o simile).
+#     3. NON cancellare mai basandoti solo sul {nome_utente} o {cognome_utente}, usa sempre la Primary Key (id_prenotazione).
+#   expected_output: >
+#     Conferma esplicita della cancellazione dell'ID specifico.
+#   agent: booking_manager
+
+find_booking_to_cancel_task:
+  description: >
+    OBIETTIVO: Trovare l'id_prenotazione da cancellare.
+    
+    INPUT UTENTE: id_prenotazione: "{id_prenotazione}", nome_utente: "{nome_utente}", cognome_utente: "{cognome_utente}"
+    
+    PASSAGGI OBBLIGATORI:
+    
+    PASSO 1: Se "{id_prenotazione}" è diverso da "None" e non è vuoto, USA IL TOOL execute_sql per eseguire:
+    SELECT * FROM weflai.prenotazioni WHERE id_prenotazione = {id_prenotazione};
+    
+    PASSO 2: Se "{id_prenotazione}" è "None" o vuoto, USA IL TOOL execute_sql per eseguire:
+    SELECT * FROM weflai.prenotazioni WHERE nome_utente ILIKE '%{nome_utente}%' AND cognome_utente ILIKE '%{cognome_utente}%';
+    
+    PASSO 3: Analizza il risultato:
+    - Se 0 risultati: Comunica che non esiste la prenotazione.
+    - Se più di 1 risultato senza ID: Chiedi l'ID univoco.
+    - Se 1 risultato: Estrai l'id_prenotazione e passalo al prossimo task.
+    
+    ATTENZIONE: DEVI CHIAMARE IL TOOL execute_sql - NON basta scrivere la query!
+  expected_output: >
+    L'id_prenotazione (intero) confermato da cancellare.
+  agent: flight_analyst
+
+delete_booking_task:
+  description: >
+    OBIETTIVO: Cancellare la prenotazione identificata dal database.
+    
+    PASSAGGI OBBLIGATORI:
+    
+    PASSO 1: Recupera l'id_prenotazione dal task precedente (find_booking_to_cancel_task).
+    
+    PASSO 2: USA IL TOOL execute_sql per eseguire questa query:
+    DELETE FROM weflai.prenotazioni WHERE id_prenotazione = <id_trovato>;
+    
+    (Sostituisci <id_trovato> con l'ID numerico recuperato al PASSO 1)
+    
+    PASSO 3: Verifica che il risultato sia "Query executed successfully" o simile.
+    
+    ATTENZIONE: DEVI CHIAMARE IL TOOL execute_sql - NON basta scrivere la query!
+    
+    Output finale: Conferma che la prenotazione ID [X] a nome di {nome_utente} {cognome_utente} è stata eliminata.
+  expected_output: >
+    Messaggio di conferma esplicita della cancellazione con l'ID eliminato.
+  agent: booking_manager

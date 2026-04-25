@@ -1,0 +1,77 @@
+search_flight_task:
+  description: >
+    OBIETTIVO: Eseguire una query SELECT per trovare l'id_volo.
+    
+    DATI INPUT:
+    - citta_partenza: "{citta_partenza}"
+    - citta_arrivo: "{citta_arrivo}"
+    - data_partenza: "{data_partenza}"
+    
+    AZIONE RICHIESTA:
+    Chiama il tool execute_sql con questa query:
+    
+    SELECT v.id_volo, v.compagnia, v.prezzo
+    FROM weflai.voli v
+    JOIN weflai.aeroporti p ON v.id_aeroporto_partenza = p.id_aeroporto
+    JOIN weflai.aeroporti a ON v.id_aeroporto_arrivo = a.id_aeroporto
+    WHERE p.citta ILIKE '%{citta_partenza}%'
+    AND a.citta ILIKE '%{citta_arrivo}%'
+    AND v.data_partenza = '{data_partenza}'
+    LIMIT 1;
+    
+    IMPORTANTE: Devi chiamare execute_sql e restituire il risultato.
+    
+  expected_output: >
+    L'id_volo trovato dal database. Esempio: id_volo: 42
+  agent: flight_analyst
+
+
+insert_booking_task:
+  description: >
+    OBIETTIVO: Inserire una prenotazione nel database.
+    
+    DATI PASSEGGERO (già disponibili):
+    - nome_utente: "{nome_utente}"
+    - cognome_utente: "{cognome_utente}"
+    - email_utente: "{email_utente}"
+    - numero_documento: "{numero_documento}"
+    
+    DATI DAL CONTEXT:
+    - id_volo: (leggi dal risultato del task precedente)
+    
+    AZIONE RICHIESTA:
+    Chiama il tool execute_sql con questa query INSERT:
+    
+    INSERT INTO weflai.prenotazioni 
+    (id_volo, nome_utente, cognome_utente, email_utente, numero_documento)
+    VALUES 
+    (<id_volo_dal_context>, '{nome_utente}', '{cognome_utente}', '{email_utente}', '{numero_documento}')
+    RETURNING id_prenotazione;
+    
+    Il tool restituirà qualcosa come [(15,)]. Il numero è l'id_prenotazione.
+    
+  expected_output: >
+    id_prenotazione: <numero dal database>
+    id_volo: <numero dal context>
+  agent: booking_manager
+
+
+generate_ticket_task:
+  description: >
+    OBIETTIVO: Generare il JSON del biglietto.
+    
+    DATI DISPONIBILI:
+    - Dal context precedente: id_prenotazione, id_volo
+    - Dai dati input: nome_utente="{nome_utente}", cognome_utente="{cognome_utente}", email_utente="{email_utente}", numero_documento="{numero_documento}"
+    
+    Crea un JSON con questi campi:
+    - id_prenotazione: (intero dal task insert_booking_task)
+    - id_volo: (intero dal task search_flight_task)
+    - nome_utente: "{nome_utente}"
+    - cognome_utente: "{cognome_utente}"
+    - email_utente: "{email_utente}"
+    - numero_documento: "{numero_documento}"
+    
+  expected_output: >
+    {"id_prenotazione": 0, "id_volo": 0, "nome_utente": "", "cognome_utente": "", "email_utente": "", "numero_documento": ""}
+  agent: customer_experience_agent
