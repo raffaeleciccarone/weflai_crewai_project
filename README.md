@@ -1,5 +1,7 @@
 # WEFLAI 🛫
 
+![Logo WEFLAI](img/weflai.png)
+
 **WEFLAI** è un sistema basato su intelligenza artificiale (costruito con **CrewAI**) che permette agli utenti di interagire con un database aeroportuale tramite un flusso conversazionale.
 
 Il progetto utilizza agenti autonomi per gestire due operazioni principali:
